@@ -1,0 +1,10 @@
+fastlane_version "2.156.0"
+
+platform :ios do
+
+  before_all do |lane, options|
+    unlock_keychain(password: ENV['KEYCHAIN_PASSWORD'])
+    ENV["DELIVER_ITMSTRANSPORTER_ADDITIONAL_UPLOAD_PARAMETERS"] = "-t Aspera"
+  end
+
+end
