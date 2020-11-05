@@ -1,10 +1,116 @@
 fastlane_version "2.156.0"
+fastlane_require "fastlane-plugin-versioning_android"
+fastlane_require 'fastlane-plugin-badge'
+
+ROOT_DIRECTORY = File.join(Dir.pwd, "..")
+APP_JSON_SOURCE = JSON.parse(open(File.join(ROOT_DIRECTORY, "app.json")).read)
+
+def getFirstMatch(str, pattern)
+  m = (pattern).match(str)
+  if m != nil then m[0] end
+end
+
+APP_VERSION = getFirstMatch(ENV["CI_COMMIT_TAG"], /\d+\.\d+\.\d+/)
+BUILD_VARIANT = getFirstMatch(ENV["CI_COMMIT_TAG"], /beta|release/)
+
+# Specific functions
+
+private_lane :generate_envfile do |options|
+  envfiles = { "beta" => ".env.dev", "release" => ".env.release" }
+  if envfiles.fetch(options[:variant], nil) == nil then
+    raise "FAILURE: 'generate_envfile' with an exception. The key '#{options[:variant]}' not found in envfiles. Some candidates are: #{envfiles.keys}."
+  end
+  Dir.chdir(ROOT_DIRECTORY) do
+    sh("cat #{envfiles[options[:variant]]} > .env")
+  end
+end
 
 platform :ios do
-
+  
   before_all do |lane, options|
     unlock_keychain(password: ENV['KEYCHAIN_PASSWORD'])
+
     ENV["DELIVER_ITMSTRANSPORTER_ADDITIONAL_UPLOAD_PARAMETERS"] = "-t Aspera"
   end
+
+  lane :build do |options|
+
+    increment_build_number(xcodeproj: ENV["IOS_PROJECT_FILE"], build_number: ENV["CI_JOB_ID"])
+    increment_version_number(xcodeproj: ENV["IOS_PROJECT_FILE"], version_number: APP_VERSION)
+
+    generate_envfile(variant: BUILD_VARIANT)
+
+    if BUILD_VARIANT == "beta" then
+      add_badge(glob: "/ios/**/Images.xcassets/AppIcon.appiconset/*.{png,PNG}")
+    end
+
+    match(type: "development", readonly: true)
+    match(type: "appstore", readonly: true)
+
+    build_app(
+      clean: true,
+      configuration: "Release",
+      output_directory: ENV["IOS_BUILD_OUTPUT"],
+      workspace: ENV["IOS_PROJECT_WORKSPACE"],
+      output_name: ENV["IOS_IPA_NAME"],
+      scheme: ENV["IOS_BUILD_SCHEME"],
+      export_options: {
+          method: "app-store",
+          provisioningProfiles: lane_context[:MATCH_PROVISIONING_PROFILE_MAPPING]
+      }
+    )
+  end
+
+  desc "Deploy to testflight stage"
+  lane :deploy do |options|
+    upload_to_testflight(ipa: ENV['IOS_IPA_FILE'])
+  end
+
+  private_lane :set_app_version do |options|
+    Dir.chdir(File.join(ROOT_DIRECTORY, "ios")) do
+        sh("xcrun agvtool new-marketing-version #{options[:version]}")
+    end
+  end
+
+end
+
+platform :android do
+
+  lane :build do |options|    
+    generate_envfile(variant: BUILD_VARIANT)
+
+    if BUILD_VARIANT == "beta" then
+      add_badge(glob: "/android/app/src/main/res/mipmap-*/ic_launcher*.png")
+    end
+
+    build_android_app(
+      tasks: ["clean", "assembleRelease", "bundleRelease"], 
+      project_dir: ENV["ANDROID_PROJECT_DIRECTORY"],
+      properties: {
+        "android.injected.signing.store.file" => ENV["ANDROID_RELEASE_KEYSTORE_FILE"],
+        "android.injected.signing.store.password" => ENV["ANDROID_RELEASE_KEY_PASSWORD"],
+        "android.injected.signing.key.alias" => ENV["ANDROID_RELEASE_KEY_ALIAS"],
+        "android.injected.signing.key.password" => ENV["ANDROID_RELEASE_KEY_PASSWORD"],
+        "versionName" => APP_VERSION,
+        "versionCode" => ENV["CI_JOB_ID"]
+      }
+    )
+
+    APK_OUTPUT_PATH = File.join(ENV["ANDROID_PROJECT_DIRECTORY"], "app/build/outputs/apk/release")
+    AAB_OUTPUT_PATH = File.join(ENV["ANDROID_PROJECT_DIRECTORY"], "app/build/outputs/bundle/release")
+
+    sh("mkdir -p #{ENV["ANDROID_BUILD_OUTPUT"]}")
+    sh("mv #{APK_OUTPUT_PATH}/app-release.apk #{ENV["ANDROID_BUILD_OUTPUT"]}/app-release.apk")
+    sh("mv #{AAB_OUTPUT_PATH}/app-release.aab #{ENV["ANDROID_BUILD_OUTPUT"]}/app-release.aab")
+
+  end
+
+  lane :deploy do |options|
+    upload_to_play_store(
+      track: "beta", 
+      aab: ENV["ANDROID_AAB_FILE"], 
+      skip_upload_apk: true
+    )  
+  end  
 
 end

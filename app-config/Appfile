@@ -1,0 +1,8 @@
+# for iOS
+
+apple_id("") # Owner Apple email address - example@email.com
+app_identifier("") # The bundle identifier of your app - com.organization.app
+itc_team_id("") # App Store Connect Team ID - 111222333
+team_id("") # Developer Portal Team ID - AABBCCDDEE
+
+# for Android

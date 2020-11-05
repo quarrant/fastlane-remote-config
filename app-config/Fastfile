@@ -1,0 +1,1 @@
+import_from_git(url: "git@github.com:quarrant/fastlane-remote-config.git", branch: "master", path: "fastlane/Fastfile", version: nil)

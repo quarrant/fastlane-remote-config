@@ -1,4 +1,4 @@
-git_url("<certificates_repository_path>")
+git_url("git@github.com:quarrant/fastlane-match-certificates.git")
 git_branch(CredentialsManager::AppfileConfig.try_fetch_value(:team_id))
 username(CredentialsManager::AppfileConfig.try_fetch_value(:apple_id))
 type("development")
