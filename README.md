@@ -42,7 +42,7 @@ FASTLANE_SESSION - сгенирированный сессионный ключ
 
 ### Сертификаты (iOS)
 
-Содержимое репозиторий, указанный в `git_url("git@github.com:quarrant/fastlane-match-certificates.git")` в **Matchfile** указывает на репозиторий для хранения сгенерированных сертификатов. Это должен быть приватный репозиторий.
+https://github.com/quarrant/fastlane-remote-config/blob/master/app-config/Matchfile#L1 указывает на репозиторий для хранения сгенерированных сертификатов. Это должен быть приватный репозиторий.
 
 Для упрощения работы с получением и обновлением сертификатов применяется механизм fastlane match. Что это значит? Сертификаты выписываются 1 раз и сохраняются в репозитории. Так как проект настраивается на сертификаты выписанные через fastlane match, то и разработчики должны выписывать себе сертификаты через этот механизм.
 
@@ -73,4 +73,14 @@ $ fastlane match development --readonly
 
 ### Keystore (Android)
 
-Все параметры, которые были указаны при первоначальной генерации keystore должны быть указываны в закрытых переменных Gitlab (https://docs.gitlab.com/ee/ci/variables/#mask-a-custom-variable), в том числе и сам keystore, закодированный в base64.
+Все параметры, которые были указаны при первоначальной генерации keystore должны быть указаны в закрытых переменных Gitlab (https://docs.gitlab.com/ee/ci/variables/#mask-a-custom-variable), в том числе и сам keystore, закодированный в base64.
+
+- Сгенерировать релизный keystore можно следуя инструкции в официальной документации (https://developer.android.com/studio/publish/app-signing#generate-key)
+- Добавить закрытые переменные проекта
+
+```bash
+ANDROID_RELEASE_KEY_ALIAS - псевдоним для key
+ANDROID_RELEASE_KEY_PASSWORD - указанный пароль для key
+ANDROID_RELEASE_STORE_PASSWORD - указанный пароль для store
+ANDROID_RELEASE_KEYSTORE - закодированное содержимое сгенерированного файла *.keystore
+```
